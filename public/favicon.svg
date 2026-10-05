@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">NovaStack APIs</title>
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="#070807" stroke="#34400b" stroke-width="2"/>
+  <path d="M14 20 32 10 50 20 32 30 14 20Z" fill="#D7FF00"/>
+  <path d="M14 29.5 32 39.5 50 29.5" fill="none" stroke="#D7FF00" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 39 32 49 50 39" fill="none" stroke="#A9D400" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
