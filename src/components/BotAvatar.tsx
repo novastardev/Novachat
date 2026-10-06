@@ -37,7 +37,7 @@ export default function BotAvatar({ size = 40, src }: Props) {
         {src ? (
           <Box component="img" src={src} alt="Nova" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <SvgIcon viewBox="0 0 24 24" sx={{ fontSize: size * 0.45, color: 'secondary.main' }}>
+          <SvgIcon viewBox="0 0 24 24" sx={{ fontSize: size * 0.45, color: 'primary.main' }}>
             <path d="M12 2 14 10 22 12 14 14 12 22 10 14 2 12 10 10Z" />
           </SvgIcon>
         )}

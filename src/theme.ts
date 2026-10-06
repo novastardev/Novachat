@@ -3,11 +3,11 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#8EA2FF' },
-    secondary: { main: '#FFC785' },
-    background: { default: '#0F1224', paper: '#181C36' },
-    text: { primary: '#E8EAF6', secondary: '#9AA0C3' },
-    divider: 'rgba(160, 170, 230, 0.16)',
+    primary: { main: '#FFFFFF', light: '#D6D6D6', dark: '#B8B8B8', contrastText: '#000000' },
+    secondary: { main: '#A6A6A6', contrastText: '#000000' },
+    background: { default: '#000000', paper: '#111111' },
+    text: { primary: '#F2F2F2', secondary: '#8F8F8F' },
+    divider: 'rgba(255, 255, 255, 0.14)',
   },
   shape: { borderRadius: 16 },
   typography: {
@@ -26,7 +26,7 @@ const theme = createTheme({
     MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
     MuiMenu: {
       styleOverrides: {
-        paper: { borderRadius: 16, border: '1px solid rgba(160, 170, 230, 0.16)' },
+        paper: { borderRadius: 16, border: '1px solid rgba(255, 255, 255, 0.14)' },
       },
     },
   },

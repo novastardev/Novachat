@@ -1,9 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import {
   Badge,
   Box,
-  Chip,
   Divider,
   IconButton,
   InputBase,
@@ -20,16 +19,29 @@ import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import GraphicEq from '@mui/icons-material/GraphicEq';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import MicNoneOutlined from '@mui/icons-material/MicNoneOutlined';
+import PauseRounded from '@mui/icons-material/PauseRounded';
 import PhotoLibraryOutlined from '@mui/icons-material/PhotoLibraryOutlined';
+import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
 import PsychologyOutlined from '@mui/icons-material/PsychologyOutlined';
 import PublicOutlined from '@mui/icons-material/PublicOutlined';
-import VoiceRecorderBar from './VoiceRecorderBar';
-import type { ComposerOptions, SendPayload } from '../types';
+import AttachmentPreview from './AttachmentPreview';
+import OptionPill from './OptionPill';
+import RecordingWave from './RecordingWave';
+import SwapIcon from './SwapIcon';
+import type { Attachment, AttachmentKind, ComposerOptions, SendPayload } from '../types';
 
 interface Props {
   onSend: (payload: SendPayload) => void;
   onLiveMode: () => void;
 }
+
+const reduceMotion = { '@media (prefers-reduced-motion: reduce)': { transition: 'none' } } as const;
+
+const kindOf = (file: File): AttachmentKind =>
+  file.type.startsWith('image/') ? 'photo' : file.type.startsWith('video/') ? 'video' : 'file';
+
+const revokePreviews = (items: Attachment[]) =>
+  items.forEach((a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl));
 
 const circleButton = {
   width: 48,
@@ -37,15 +49,19 @@ const circleButton = {
   bgcolor: 'background.paper',
   border: 1,
   borderColor: 'divider',
+  transition: 'background-color 150ms ease, border-color 200ms ease',
   '&:hover': { bgcolor: 'background.paper', borderColor: 'primary.main' },
+  ...reduceMotion,
 } as const;
 
 export default function ChatInput({ onSend, onLiveMode }: Props) {
   const [text, setText] = useState('');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [options, setOptions] = useState<ComposerOptions>({ thinkHarder: false, webSearch: false });
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [recording, setRecording] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [seconds, setSeconds] = useState(0);
   const photoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -53,17 +69,61 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
   const anyOptionOn = options.thinkHarder || options.webSearch;
   const closeMenu = () => setAnchor(null);
 
+  // Free preview object URLs when the component unmounts.
+  const attachmentsRef = useRef<Attachment[]>([]);
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+  useEffect(() => () => revokePreviews(attachmentsRef.current), []);
+
+  useEffect(() => {
+    if (!recording || paused) return;
+    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [recording, paused]);
+
+  const startRecording = () => {
+    setSeconds(0);
+    setPaused(false);
+    setRecording(true);
+  };
+
+  const stopRecording = () => {
+    setRecording(false);
+    setPaused(false);
+  };
+
+  const finishRecording = () => {
+    // TODO: send the recorded audio (MediaRecorder) to your backend.
+    stopRecording();
+  };
+
   const submit = () => {
     if (!hasContent) return;
-    onSend({ text: text.trim(), options, attachments });
+    onSend({ text: text.trim(), options, attachments: attachments.map((a) => a.file) });
+    revokePreviews(attachments);
     setText('');
     setAttachments([]);
   };
 
   const addFiles = (e: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
+    const picked = Array.from(e.target.files ?? []).map<Attachment>((file) => {
+      const kind = kindOf(file);
+      return {
+        id: crypto.randomUUID(),
+        file,
+        kind,
+        previewUrl: kind === 'file' ? undefined : URL.createObjectURL(file),
+      };
+    });
     if (picked.length) setAttachments((prev) => [...prev, ...picked]);
     e.target.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    const gone = attachments.find((a) => a.id === id);
+    if (gone) revokePreviews([gone]);
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -79,115 +139,156 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
     closeMenu();
   };
 
+  const micState = !recording ? 'mic' : paused ? 'play' : 'pause';
+  const actionState = recording ? 'done' : hasContent ? 'send' : 'live';
+
+  const onAction = () => {
+    if (recording) finishRecording();
+    else if (hasContent) submit();
+    else onLiveMode();
+  };
+
+  const actionLabel = recording ? 'Finish recording' : hasContent ? 'Send message' : 'Start live mode';
+  const micLabel = !recording ? 'Record a voice message' : paused ? 'Resume recording' : 'Pause recording';
+
   return (
     <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: 1, pb: { xs: 1.5, sm: 2.5 } }}>
       <Box sx={{ maxWidth: 760, mx: 'auto' }}>
-        {recording ? (
-          <VoiceRecorderBar
-            onCancel={() => setRecording(false)}
-            onDone={() => {
-              // TODO: send the recorded audio (MediaRecorder) to your backend.
-              setRecording(false);
-            }}
-          />
-        ) : (
-          <>
-            {(attachments.length > 0 || anyOptionOn) && (
-              <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 1.25, px: 0.5 }}>
-                {attachments.map((file, i) => (
-                  <Chip
-                    key={`${file.name}-${i}`}
-                    size="small"
-                    label={file.name}
-                    sx={{ maxWidth: 200 }}
-                    onDelete={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
-                  />
-                ))}
-                {options.thinkHarder && (
-                  <Chip
-                    size="small"
-                    color="secondary"
-                    variant="outlined"
-                    icon={<PsychologyOutlined />}
-                    label="Think harder"
-                    onDelete={() => setOptions((p) => ({ ...p, thinkHarder: false }))}
-                  />
-                )}
-                {options.webSearch && (
-                  <Chip
-                    size="small"
-                    color="secondary"
-                    variant="outlined"
-                    icon={<PublicOutlined />}
-                    label="Web search"
-                    onDelete={() => setOptions((p) => ({ ...p, webSearch: false }))}
-                  />
-                )}
-              </Stack>
+        {anyOptionOn && (
+          <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 1.25, px: 0.5 }}>
+            {options.thinkHarder && (
+              <OptionPill
+                icon={<PsychologyOutlined />}
+                label="Think harder"
+                onRemove={() => setOptions((p) => ({ ...p, thinkHarder: false }))}
+              />
             )}
-
-            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-              <Badge variant="dot" color="secondary" overlap="circular" invisible={!anyOptionOn}>
-                <IconButton aria-label="Attach" sx={circleButton} onClick={(e) => setAnchor(e.currentTarget)}>
-                  <AddRounded />
-                </IconButton>
-              </Badge>
-
-              <Box
-                sx={{
-                  flex: 1,
-                  minWidth: 0,
-                  minHeight: 48,
-                  display: 'flex',
-                  alignItems: 'center',
-                  px: 2,
-                  borderRadius: '24px',
-                  bgcolor: 'background.paper',
-                  border: 1,
-                  borderColor: 'divider',
-                  '&:focus-within': { borderColor: 'primary.main' },
-                }}
-              >
-                <InputBase
-                  multiline
-                  maxRows={6}
-                  fullWidth
-                  placeholder="Message Nova"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={onKeyDown}
-                  inputProps={{ 'aria-label': 'Message Nova' }}
-                  sx={{ py: 0.5 }}
-                />
-              </Box>
-
-              <IconButton
-                aria-label="Record a voice message"
-                sx={circleButton}
-                onClick={() => setRecording(true)}
-              >
-                <MicNoneOutlined />
-              </IconButton>
-
-              <IconButton
-                aria-label={hasContent ? 'Send message' : 'Start live mode'}
-                onClick={hasContent ? submit : onLiveMode}
-                sx={{
-                  width: 48,
-                  height: 48,
-                  bgcolor: 'primary.main',
-                  color: 'background.default',
-                  '&:hover': { bgcolor: 'primary.light' },
-                }}
-              >
-                {hasContent ? <ArrowUpward /> : <GraphicEq />}
-              </IconButton>
-            </Box>
-          </>
+            {options.webSearch && (
+              <OptionPill
+                icon={<PublicOutlined />}
+                label="Web search"
+                onRemove={() => setOptions((p) => ({ ...p, webSearch: false }))}
+              />
+            )}
+          </Stack>
         )}
+
+        {/* Floating pill with photo, video and file previews */}
+        <AttachmentPreview items={attachments} onRemove={removeAttachment} />
+
+        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+          {/* Attach: the + rotates 45deg into an X that cancels the recording */}
+          <Badge variant="dot" color="primary" overlap="circular" invisible={!anyOptionOn || recording}>
+            <IconButton
+              aria-label={recording ? 'Cancel recording' : 'Attach'}
+              sx={circleButton}
+              onClick={(e) => (recording ? stopRecording() : setAnchor(e.currentTarget))}
+            >
+              <AddRounded
+                sx={{
+                  transition: 'transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                  transform: recording ? 'rotate(45deg)' : 'rotate(0deg)',
+                  ...reduceMotion,
+                }}
+              />
+            </IconButton>
+          </Badge>
+
+          {/* Input pill: text field cross-fades into the waveform while recording */}
+          <Box
+            sx={{
+              position: 'relative',
+              flex: 1,
+              minWidth: 0,
+              minHeight: 48,
+              display: 'flex',
+              alignItems: 'center',
+              px: 2,
+              borderRadius: '24px',
+              bgcolor: 'background.paper',
+              border: 1,
+              borderColor: recording ? 'primary.main' : 'divider',
+              transition: 'border-color 200ms ease',
+              '&:focus-within': { borderColor: 'primary.main' },
+              ...reduceMotion,
+            }}
+          >
+            <InputBase
+              multiline
+              maxRows={6}
+              fullWidth
+              placeholder="Message Nova"
+              value={text}
+              disabled={recording}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={onKeyDown}
+              inputProps={{ 'aria-label': 'Message Nova' }}
+              sx={{
+                py: 0.5,
+                opacity: recording ? 0 : 1,
+                transition: 'opacity 180ms ease',
+                ...reduceMotion,
+              }}
+            />
+            <Box
+              aria-hidden={!recording}
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                px: 2,
+                display: 'flex',
+                alignItems: 'center',
+                opacity: recording ? 1 : 0,
+                pointerEvents: recording ? 'auto' : 'none',
+                transition: 'opacity 220ms ease',
+                ...reduceMotion,
+              }}
+            >
+              <RecordingWave active={recording} paused={paused} seconds={seconds} />
+            </Box>
+          </Box>
+
+          {/* Mic button: becomes pause / resume while recording */}
+          <IconButton
+            aria-label={micLabel}
+            sx={{ ...circleButton, borderColor: recording ? 'primary.main' : 'divider' }}
+            onClick={() => (recording ? setPaused((p) => !p) : startRecording())}
+          >
+            <SwapIcon
+              active={micState}
+              icons={{
+                mic: <MicNoneOutlined />,
+                pause: <PauseRounded />,
+                play: <PlayArrowRounded />,
+              }}
+            />
+          </IconButton>
+
+          {/* Action button: live mode, send, or done (check) while recording */}
+          <IconButton
+            aria-label={actionLabel}
+            onClick={onAction}
+            sx={{
+              width: 48,
+              height: 48,
+              bgcolor: 'primary.main',
+              color: 'background.default',
+              '&:hover': { bgcolor: 'primary.light' },
+            }}
+          >
+            <SwapIcon
+              active={actionState}
+              icons={{
+                live: <GraphicEq />,
+                send: <ArrowUpward />,
+                done: <CheckRounded />,
+              }}
+            />
+          </IconButton>
+        </Box>
       </Box>
 
-      <input ref={photoInput} type="file" accept="image/*" multiple hidden onChange={addFiles} />
+      <input ref={photoInput} type="file" accept="image/*,video/*" multiple hidden onChange={addFiles} />
       <input ref={fileInput} type="file" multiple hidden onChange={addFiles} />
 
       <Menu
@@ -207,7 +308,7 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
           <ListItemIcon>
             <PhotoLibraryOutlined fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Photos</ListItemText>
+          <ListItemText>Photos &amp; videos</ListItemText>
         </MenuItem>
         <MenuItem
           onClick={() => {

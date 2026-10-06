@@ -17,3 +17,13 @@ export interface SendPayload {
   options: ComposerOptions;
   attachments: File[];
 }
+
+export type AttachmentKind = 'photo' | 'video' | 'file';
+
+export interface Attachment {
+  id: string;
+  file: File;
+  kind: AttachmentKind;
+  /** Object URL for photo and video previews. */
+  previewUrl?: string;
+}

@@ -63,9 +63,9 @@ export default function LiveModeOverlay({ open, onClose }: Props) {
             sx={{
               width: 56,
               height: 56,
-              bgcolor: 'error.main',
-              color: 'error.contrastText',
-              '&:hover': { bgcolor: 'error.dark' },
+              bgcolor: 'primary.main',
+              color: 'background.default',
+              '&:hover': { bgcolor: 'primary.light' },
             }}
           >
             <CloseRounded />
