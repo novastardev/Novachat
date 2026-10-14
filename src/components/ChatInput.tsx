@@ -11,6 +11,7 @@ import {
   Menu,
   MenuItem,
   Stack,
+  Typography,
 } from '@mui/material';
 import AddRounded from '@mui/icons-material/AddRounded';
 import ArrowUpward from '@mui/icons-material/ArrowUpward';
@@ -28,6 +29,8 @@ import AttachmentPreview from './AttachmentPreview';
 import OptionPill from './OptionPill';
 import RecordingWave from './RecordingWave';
 import SwapIcon from './SwapIcon';
+import { transcribeAudio } from '../lib/transcribe';
+import { useVoiceRecorder } from '../lib/useVoiceRecorder';
 import type { Attachment, AttachmentKind, ComposerOptions, SendPayload } from '../types';
 
 interface Props {
@@ -62,6 +65,11 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [transcribing, setTranscribing] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
+  const recorder = useVoiceRecorder();
+  const startingRef = useRef(false);
+  const transcribeAbort = useRef<AbortController | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -82,20 +90,71 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
     return () => window.clearInterval(id);
   }, [recording, paused]);
 
-  const startRecording = () => {
-    setSeconds(0);
-    setPaused(false);
-    setRecording(true);
+  // Stop an in-flight transcription if the composer unmounts.
+  useEffect(
+    () => () => {
+      transcribeAbort.current?.abort();
+    },
+    [],
+  );
+
+  const startRecording = async () => {
+    if (startingRef.current || transcribing) return;
+    startingRef.current = true;
+    setVoiceError('');
+    try {
+      await recorder.start();
+      setSeconds(0);
+      setPaused(false);
+      setRecording(true);
+    } catch (err) {
+      setVoiceError(err instanceof Error ? err.message : 'Could not start recording.');
+    } finally {
+      startingRef.current = false;
+    }
   };
 
+  // Cancel: throw the recording away.
   const stopRecording = () => {
+    recorder.cancel();
     setRecording(false);
     setPaused(false);
   };
 
-  const finishRecording = () => {
-    // TODO: send the recorded audio (MediaRecorder) to your backend.
-    stopRecording();
+  const togglePause = () => {
+    if (paused) recorder.resume();
+    else recorder.pause();
+    setPaused((p) => !p);
+  };
+
+  // Finish (check mark): transcribe the recording and drop the text into the input box.
+  const finishRecording = async () => {
+    const audio = await recorder.stop();
+    setRecording(false);
+    setPaused(false);
+    if (!audio) {
+      setVoiceError('No audio was captured. Please try again.');
+      return;
+    }
+
+    const controller = new AbortController();
+    transcribeAbort.current = controller;
+    setTranscribing(true);
+    try {
+      const transcript = await transcribeAudio(audio, { signal: controller.signal });
+      if (!transcript) {
+        setVoiceError("Couldn't make out any speech. Please try again.");
+      } else {
+        setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${transcript}` : transcript));
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setVoiceError(err instanceof Error ? err.message : 'Transcription failed.');
+      }
+    } finally {
+      transcribeAbort.current = null;
+      setTranscribing(false);
+    }
   };
 
   const submit = () => {
@@ -143,9 +202,16 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
   const actionState = recording ? 'done' : hasContent ? 'send' : 'live';
 
   const onAction = () => {
-    if (recording) finishRecording();
+    if (transcribing) return;
+    if (recording) void finishRecording();
     else if (hasContent) submit();
     else onLiveMode();
+  };
+
+  const onMic = () => {
+    if (transcribing) return;
+    if (recording) togglePause();
+    else void startRecording();
   };
 
   const actionLabel = recording ? 'Finish recording' : hasContent ? 'Send message' : 'Start live mode';
@@ -175,6 +241,12 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
 
         {/* Floating pill with photo, video and file previews */}
         <AttachmentPreview items={attachments} onRemove={removeAttachment} />
+
+        {voiceError && (
+          <Typography role="alert" variant="caption" color="error.light" sx={{ display: 'block', mb: 1, px: 1 }}>
+            {voiceError}
+          </Typography>
+        )}
 
         <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
           {/* Attach: the + rotates 45deg into an X that cancels the recording */}
@@ -217,7 +289,7 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
               multiline
               maxRows={6}
               fullWidth
-              placeholder="Message Nova"
+              placeholder={transcribing ? 'Transcribing…' : 'Message Nova'}
               value={text}
               disabled={recording}
               onChange={(e) => setText(e.target.value)}
@@ -252,7 +324,8 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
           <IconButton
             aria-label={micLabel}
             sx={{ ...circleButton, borderColor: recording ? 'primary.main' : 'divider' }}
-            onClick={() => (recording ? setPaused((p) => !p) : startRecording())}
+            disabled={transcribing}
+            onClick={onMic}
           >
             <SwapIcon
               active={micState}
