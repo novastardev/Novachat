@@ -40,6 +40,36 @@ const app = express();
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 
+// OAuth handoff: the browser navigates here, and this server follows NovaStack's JSON URL server-side.
+app.get('/api/oauth/authorize', async (req, res) => {
+  const allowed = ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method'];
+  const params = new URLSearchParams();
+  for (const key of allowed) {
+    const value = req.query[key];
+    if (typeof value === 'string' && value.length <= 2048) params.set(key, value);
+  }
+  if (!params.get('client_id') || !params.get('redirect_uri') || !params.get('state') || !params.get('code_challenge')) {
+    return res.status(400).json({ error: 'Missing required OAuth parameters.' });
+  }
+  try {
+    const upstream = await fetch(`https://api-novastack.vercel.app/api/auth/oauth2/authorize?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+    const result = await upstream.json().catch(() => ({}));
+    if (!upstream.ok || typeof result.url !== 'string') {
+      return res.status(502).json({ error: result.message || result.error_description || 'NovaStack did not return a consent URL.' });
+    }
+    const consentUrl = new URL(result.url);
+    if (consentUrl.origin !== 'https://app-novastack.vercel.app') {
+      return res.status(502).json({ error: 'NovaStack returned an unexpected consent URL.' });
+    }
+    return res.redirect(302, consentUrl.toString());
+  } catch (error) {
+    console.error('OAuth authorize handoff failed:', error);
+    return res.status(502).json({ error: 'Could not reach NovaStack OAuth.' });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   const { model, messages } = req.body ?? {};
 
