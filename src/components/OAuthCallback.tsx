@@ -26,7 +26,9 @@ export default function OAuthCallback() {
       {!error && <CircularProgress size={28} />}
       <Typography variant="h5">{status}</Typography>
       {error && <Typography color="error" role="alert">{error}</Typography>}
-      {error && <Button onClick={() => { window.location.href = '/'; }}>Back to Nova</Button>}
+      <Button variant="contained" onClick={() => { window.location.href = '/'; }}>
+        {error ? 'Back to Nova' : 'Continue to NovaChat'}
+      </Button>
       {!error && <Typography color="text.secondary" variant="body2">You can return to NovaChat when this finishes.</Typography>}
     </Box>
   );
