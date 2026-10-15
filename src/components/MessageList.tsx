@@ -179,7 +179,7 @@ export default function MessageList({ messages, onRegenerate, onRate }: Props) {
                 {message.attachments.map((name, i) => (
                   <Chip key={`${name}-${i}`} size="small" label={name} sx={{ maxWidth: 200 }} />
                 ))}
-              </Stack>
+              </Box>
             )}
             {message.text && (
               <Typography sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.text}</Typography>
