@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Chip, Typography } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
 import AssistantAvatar from './AssistantAvatar';
 import MarkdownMessage from './MarkdownMessage';
@@ -157,10 +157,9 @@ export default function MessageList({ messages, onRegenerate, onRate }: Props) {
   }, [messages]);
 
   return (
-    <Stack
+    <Box
       ref={listRef}
-      spacing={2.5}
-      sx={{ width: '100%', maxWidth: 760, mx: 'auto', px: 2, py: 2, overflow: 'clip' }}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, width: '100%', maxWidth: 760, mx: 'auto', px: 2, py: 2, overflow: 'clip' }}
     >
       {messages.map((message) =>
         message.role === 'user' ? (
@@ -176,7 +175,7 @@ export default function MessageList({ messages, onRegenerate, onRate }: Props) {
             }}
           >
             {message.attachments && message.attachments.length > 0 && (
-              <Stack direction="row" gap={0.75} flexWrap="wrap" sx={{ mb: message.text ? 1 : 0 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'row', gap: 0.75, flexWrap: 'wrap', mb: message.text ? 1 : 0 }}>
                 {message.attachments.map((name, i) => (
                   <Chip key={`${name}-${i}`} size="small" label={name} sx={{ maxWidth: 200 }} />
                 ))}
@@ -187,7 +186,7 @@ export default function MessageList({ messages, onRegenerate, onRate }: Props) {
             )}
           </Box>
         ) : (
-          <Stack key={message.id} direction="row" spacing={1.5} alignItems="flex-start">
+          <Box key={message.id} sx={{ display: 'flex', flexDirection: 'row', gap: 1.5, alignItems: 'flex-start' }}>
             <Box sx={{ pt: 0.25 }}>
               <AssistantAvatar thinking={Boolean(message.thinking)} />
             </Box>
@@ -233,7 +232,7 @@ export default function MessageList({ messages, onRegenerate, onRate }: Props) {
                 )}
               </Box>
             )}
-          </Stack>
+          </Box>
         ),
       )}
       <div ref={endRef} />
@@ -260,6 +259,6 @@ export default function MessageList({ messages, onRegenerate, onRate }: Props) {
           {debugInfo}
         </Box>
       )}
-    </Stack>
+    </Box>
   );
 }
