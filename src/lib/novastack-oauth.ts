@@ -1,4 +1,5 @@
 const API_BASE = (import.meta.env.VITE_NOVASTACK_API_URL || 'https://api-novastack.vercel.app').replace(/\/$/, '');
+const OAUTH_HANDOFF_BASE = (import.meta.env.VITE_NOVACHAT_SERVER_URL || '').replace(/\/$/, '');
 const CLIENT_ID = import.meta.env.VITE_NOVASTACK_OAUTH_CLIENT_ID || '';
 const CALLBACK_PATH = '/oauth/callback';
 
@@ -36,23 +37,14 @@ export async function beginNovaStackLogin(): Promise<void> {
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
-  // NovaStack's authorize API returns a JSON redirect descriptor instead of an HTTP redirect.
-  const response = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' },
-    credentials: 'omit',
-  });
-  const result = await response.json().catch(() => ({}));
-
-  if (!response.ok || typeof result.url !== 'string' || !result.url) {
-    throw new Error(result.message || result.error_description || 'NovaStack did not return a consent URL.');
+  if (!OAUTH_HANDOFF_BASE) {
+    throw new Error('NovaChat OAuth server is not configured. Set VITE_NOVACHAT_SERVER_URL in Vercel.');
   }
 
-  // Only navigate to NovaStack's own consent page, not an arbitrary URL from a response.
-  const consentUrl = new URL(result.url);
-  if (consentUrl.origin !== 'https://app-novastack.vercel.app') {
-    throw new Error('NovaStack returned an unexpected consent URL.');
-  }
-  window.location.assign(consentUrl.toString());
+  const handoffUrl = new URL(`${OAUTH_HANDOFF_BASE}/api/oauth/authorize`);
+  url.searchParams.forEach((value, key) => handoffUrl.searchParams.set(key, value));
+  // Browser navigates to our server; it performs the cross-origin fetch and issues a real 302.
+  window.location.assign(handoffUrl.toString());
 }
 
 export async function finishNovaStackLogin(): Promise<{ name?: string; email?: string }> {
