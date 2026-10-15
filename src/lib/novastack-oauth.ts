@@ -63,7 +63,7 @@ export async function finishNovaStackLogin(): Promise<{ name?: string; email?: s
   sessionStorage.removeItem('novastack_oauth_state');
   sessionStorage.removeItem('novastack_oauth_verifier');
 
-  const tokenResponse = await fetch(`${API_BASE}/api/auth/oauth2/token`, {
+  const tokenResponse = await fetch(`${OAUTH_HANDOFF_BASE}/api/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -82,7 +82,7 @@ export async function finishNovaStackLogin(): Promise<{ name?: string; email?: s
   sessionStorage.setItem('novastack_access_token', tokens.access_token);
   if (tokens.refresh_token) sessionStorage.setItem('novastack_refresh_token', tokens.refresh_token);
 
-  const userResponse = await fetch(`${API_BASE}/api/auth/oauth2/userinfo`, {
+  const userResponse = await fetch(`${OAUTH_HANDOFF_BASE}/api/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
   const user = userResponse.ok ? await userResponse.json().catch(() => ({})) : {};
