@@ -10,7 +10,6 @@ import {
   ListItemText,
   Menu,
   MenuItem,
-  Stack,
   Typography,
 } from '@mui/material';
 import AddRounded from '@mui/icons-material/AddRounded';
@@ -185,7 +184,7 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const isDesktop = window.matchMedia('(pointer: fine)').matches;
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && isDesktop) {
       e.preventDefault();
@@ -221,7 +220,7 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
     <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: 1, pb: { xs: 1.5, sm: 2.5 } }}>
       <Box sx={{ maxWidth: 760, mx: 'auto' }}>
         {anyOptionOn && (
-          <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 1.25, px: 0.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1, flexWrap: 'wrap', mb: 1.25, px: 0.5 }}>
             {options.thinkHarder && (
               <OptionPill
                 icon={<PsychologyOutlined />}
@@ -236,7 +235,7 @@ export default function ChatInput({ onSend, onLiveMode }: Props) {
                 onRemove={() => setOptions((p) => ({ ...p, webSearch: false }))}
               />
             )}
-          </Stack>
+          </Box>
         )}
 
         {/* Floating pill with photo, video and file previews */}
