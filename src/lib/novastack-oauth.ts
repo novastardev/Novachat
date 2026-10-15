@@ -36,7 +36,23 @@ export async function beginNovaStackLogin(): Promise<void> {
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
-  window.location.assign(url.toString());
+  // NovaStack's authorize API returns a JSON redirect descriptor instead of an HTTP redirect.
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+    credentials: 'omit',
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || typeof result.url !== 'string' || !result.url) {
+    throw new Error(result.message || result.error_description || 'NovaStack did not return a consent URL.');
+  }
+
+  // Only navigate to NovaStack's own consent page, not an arbitrary URL from a response.
+  const consentUrl = new URL(result.url);
+  if (consentUrl.origin !== 'https://app-novastack.vercel.app') {
+    throw new Error('NovaStack returned an unexpected consent URL.');
+  }
+  window.location.assign(consentUrl.toString());
 }
 
 export async function finishNovaStackLogin(): Promise<{ name?: string; email?: string }> {
