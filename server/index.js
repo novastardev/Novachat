@@ -37,8 +37,16 @@ if (!ASSEMBLYAI_API_KEY) {
 }
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({
+  origin(origin, callback) {
+    const allowed = !origin ||
+      origin === 'http://localhost:5173' ||
+      /^https:\/\/nova-chat-oauth-test(?:-[a-z0-9-]+)?-nova-5d9bb68b\.vercel\.app$/.test(origin);
+    callback(allowed ? null : new Error('Origin not allowed by CORS'), allowed);
+  },
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 // OAuth handoff: the browser navigates here, and this server follows NovaStack's JSON URL server-side.
 app.get('/api/oauth/authorize', async (req, res) => {
@@ -67,6 +75,49 @@ app.get('/api/oauth/authorize', async (req, res) => {
   } catch (error) {
     console.error('OAuth authorize handoff failed:', error);
     return res.status(502).json({ error: 'Could not reach NovaStack OAuth.' });
+  }
+});
+
+
+// OAuth token exchange: keep the browser away from NovaStack's cross-origin token endpoint.
+app.post('/api/oauth/token', async (req, res) => {
+  try {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.body || {})) {
+      if (typeof value === 'string') params.set(key, value);
+    }
+    const upstream = await fetch(`${NOVASTACK_TARGET}/api/auth/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: params.toString(),
+    });
+    const body = await upstream.text();
+    res.status(upstream.status);
+    res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
+    return res.send(body);
+  } catch (error) {
+    console.error('OAuth token handoff failed:', error);
+    return res.status(502).json({ error: 'Could not reach NovaStack OAuth token endpoint.' });
+  }
+});
+
+// OAuth user info: forward the access token server-to-server to avoid browser CORS.
+app.get('/api/oauth/userinfo', async (req, res) => {
+  const authorization = req.get('authorization');
+  if (!authorization || !authorization.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing bearer access token.' });
+  }
+  try {
+    const upstream = await fetch(`${NOVASTACK_TARGET}/api/auth/oauth2/userinfo`, {
+      headers: { Authorization: authorization, Accept: 'application/json' },
+    });
+    const body = await upstream.text();
+    res.status(upstream.status);
+    res.set('Content-Type', upstream.headers.get('content-type') || 'application/json');
+    return res.send(body);
+  } catch (error) {
+    console.error('OAuth userinfo handoff failed:', error);
+    return res.status(502).json({ error: 'Could not reach NovaStack OAuth userinfo endpoint.' });
   }
 });
 
