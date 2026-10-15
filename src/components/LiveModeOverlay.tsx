@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Dialog, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Dialog, IconButton, Typography } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import MicOffRounded from '@mui/icons-material/MicOffRounded';
@@ -33,7 +33,7 @@ export default function LiveModeOverlay({ open, onClose }: Props) {
       >
         <Box />
 
-        <Stack alignItems="center" spacing={4}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
           <Box
             sx={{
               width: 168,
@@ -47,9 +47,9 @@ export default function LiveModeOverlay({ open, onClose }: Props) {
             }}
           />
           <Typography color="text.secondary">{muted ? 'Microphone is off' : 'Listening'}</Typography>
-        </Stack>
+        </Box>
 
-        <Stack direction="row" spacing={3}>
+        <Box sx={{ display: 'flex', flexDirection: 'row', gap: 3 }}>
           <IconButton
             aria-label={muted ? 'Turn microphone on' : 'Turn microphone off'}
             onClick={() => setMuted((m) => !m)}
@@ -70,7 +70,7 @@ export default function LiveModeOverlay({ open, onClose }: Props) {
           >
             <CloseRounded />
           </IconButton>
-        </Stack>
+        </Box>
       </Box>
     </Dialog>
   );
