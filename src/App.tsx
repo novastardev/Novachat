@@ -124,6 +124,7 @@ export default function App() {
     >
       <TopBar
         title={hasMessages ? 'Nova' : undefined}
+        isSignedIn={Boolean(userProfile)}
         onOpenDrawer={() => setDrawerOpen(true)}
         onNewChat={() => setMessages([])}
       />
