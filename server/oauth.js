@@ -115,7 +115,7 @@ export function registerNovaStackOAuth(app) {
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', process.env.NOVASTACK_OAUTH_CLIENT_ID);
     url.searchParams.set('redirect_uri', redirectUri);
-    url.searchParams.set('scope', 'ai:tokens:use offline_access');
+    url.searchParams.set('scope', 'ai:tokens:use');
     url.searchParams.set('state', state);
     url.searchParams.set('code_challenge', challenge);
     url.searchParams.set('code_challenge_method', 'S256');
