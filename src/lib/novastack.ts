@@ -1,16 +1,16 @@
 /**
- * Client for flip-ia.vercel.app's chat completions API, called through a local
- * proxy (server/index.js) instead of directly, since flip-ia.vercel.app does not
- * send CORS headers that allow browser requests. Run `npm start` inside server/
- * alongside `npm run dev` for this to work. See server/README.md.
+ * Client for NovaStack's OpenAI-compatible chat completions API. Requests pass
+ * through the server-side OAuth proxy so tokens and the client secret stay out
+ * of browser JavaScript. See server/README.md.
  */
 
-const PROXY_URL = 'http://localhost:3001/api/chat';
+export const PROXY_BASE = (import.meta.env.VITE_PROXY_URL || 'http://localhost:3001').replace(/\/+$/, '');
+const PROXY_URL = `${PROXY_BASE}/api/chat`;
 
 /** Standard model for normal replies. */
-export const MODEL_STANDARD = 'Olmo-3.1-32B-Instruct';
+export const MODEL_STANDARD = 'novastack-1.0';
 /** Used instead of the standard model when the user turns on "Think harder". */
-export const MODEL_THINKING = 'trinity-large-thinking';
+export const MODEL_THINKING = 'novastack-1.0-thinking';
 
 export interface NovaStackMessage {
   role: 'system' | 'user' | 'assistant';
@@ -74,7 +74,7 @@ async function parseErrorBody(res: Response): Promise<string> {
  */
 export interface ChatReply {
   text: string;
-  /** Reasoning/thinking content, when the model returns it (confirmed for trinity-large-thinking). */
+  /** Reasoning/thinking content, when the thinking model returns it. */
   reasoning?: string;
 }
 
@@ -91,6 +91,7 @@ export async function sendChatMessage(
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ model, messages }),
       signal: options.signal,
     });
@@ -100,7 +101,7 @@ export async function sendChatMessage(
     // so it can be read without dev tools.
     const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     throw new NovaStackError(
-      `Could not reach the local chat proxy (${detail}). Make sure \`npm start\` is running inside the server/ folder (see server/README.md).`,
+      `Could not reach the NovaStack proxy (${detail}). Make sure the Nova Chat server is running and VITE_PROXY_URL points to it.`,
     );
   }
 
@@ -114,10 +115,25 @@ export async function sendChatMessage(
   if (typeof text !== 'string') {
     throw new NovaStackError('The chat API returned an unexpected response shape.');
   }
-  // Confirmed from a live response: the thinking model returns this as `reasoning_content`.
+  // Thinking models may return their reasoning in either supported field.
   const reasoning = message?.reasoning_content ?? message?.reasoning;
   return {
     text: text.replace(/^\s+/, ''),
     reasoning: typeof reasoning === 'string' && reasoning.trim() ? reasoning.trim() : undefined,
   };
+}
+
+
+/** Starts the server-side OAuth authorization-code + PKCE flow. */
+export function connectNovaStack(): void {
+  window.location.assign(`${PROXY_BASE}/api/oauth/start`);
+}
+
+/** Removes the server's HttpOnly OAuth token cookies. */
+export async function disconnectNovaStack(): Promise<void> {
+  const response = await fetch(`${PROXY_BASE}/api/oauth/disconnect`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!response.ok) throw new NovaStackError('Could not disconnect NovaStack.', response.status);
 }

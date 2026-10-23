@@ -3,16 +3,16 @@
 // this server, calling the upstream APIs itself, is a server-to-server request,
 // which CORS does not apply to at all. Run with: node server/index.js
 //
-// The NovaStack API key lives ONLY here (read from .env, never sent to the
-// browser, never hardcoded). See server/.env.example.
+// OAuth client credentials and access tokens stay on this server. The optional
+// NovaStack API key remains server-only for voice/TTS. See server/.env.example.
 
 import 'dotenv/config';
+import { getNovaStackAccessToken, registerNovaStackOAuth } from './oauth.js';
 import express from 'express';
 import cors from 'cors';
 import { TranscriptionError, transcribeAudioBuffer, DEFAULT_BASE_URL, DEFAULT_SPEECH_MODELS } from './assemblyai.js';
 
 const PORT = process.env.PORT || 3001;
-const CHAT_TARGET = 'https://flip-ia.vercel.app';
 const NOVASTACK_TARGET = 'https://api-novastack.vercel.app';
 const NOVASTACK_API_KEY = process.env.NOVASTACK_API_KEY;
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
@@ -37,32 +37,49 @@ if (!ASSEMBLYAI_API_KEY) {
 }
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: process.env.NOVACHAT_FRONTEND_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json());
+
+registerNovaStackOAuth(app);
 
 app.post('/api/chat', async (req, res) => {
   const { model, messages } = req.body ?? {};
+  const allowedModels = new Set(['novastack-1.0', 'novastack-1.0-thinking']);
 
-  if (typeof model !== 'string' || !Array.isArray(messages)) {
-    return res.status(400).json({ error: { message: 'Request body needs { model, messages }.' } });
+  if (typeof model !== 'string' || !allowedModels.has(model) || !Array.isArray(messages)) {
+    return res.status(400).json({
+      error: { message: 'Request body needs a supported NovaStack model and a messages array.' },
+    });
+  }
+
+  const accessToken = await getNovaStackAccessToken(req, res);
+  if (!accessToken) {
+    return res.status(401).json({
+      error: { message: 'Connect NovaStack first to authorize AI Tokens. Use the app menu and choose Connect NovaStack.' },
+      code: 'oauth_not_connected',
+    });
   }
 
   let upstream;
   try {
-    upstream = await fetch(`${CHAT_TARGET}/${model}/v1/chat/completions`, {
+    upstream = await fetch(`${NOVASTACK_TARGET}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({ model, messages }),
     });
   } catch (err) {
-    console.error('Could not reach flip-ia.vercel.app:', err);
-    return res.status(502).json({ error: { message: 'Could not reach the upstream chat API.' } });
+    console.error('Could not reach NovaStack chat API:', err);
+    return res.status(502).json({ error: { message: 'Could not reach the NovaStack chat API.' } });
   }
 
-  const text = await upstream.text();
+  const body = await upstream.text();
   res.status(upstream.status);
   res.set('Content-Type', upstream.headers.get('content-type') ?? 'application/json');
-  res.send(text);
+  res.set('Cache-Control', 'no-store');
+  res.send(body);
 });
 
 // Starts a NovaStack text-to-speech job. Returns { job_id } immediately; the
@@ -224,7 +241,8 @@ app.use((err, _req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Local proxy running at http://localhost:${PORT}`);
-  console.log(`  POST /api/chat             -> ${CHAT_TARGET}/{model}/v1/chat/completions`);
+  console.log(`  POST /api/chat             -> ${NOVASTACK_TARGET}/v1/chat/completions (OAuth Bearer)`);
+  console.log(`  GET  /api/oauth/start      -> NovaStack OAuth authorization`);
   console.log(`  POST /api/voice            -> ${NOVASTACK_TARGET}/v1/voice/novastack-voice-1.0`);
   console.log(`  GET  /api/voice/jobs/:id   -> ${NOVASTACK_TARGET}/v1/voice/jobs/:id (+ audio once done)`);
   console.log(`  POST /api/transcribe       -> ${ASSEMBLYAI_BASE_URL}/v2/upload + /v2/transcript`);
