@@ -1,9 +1,8 @@
 # Local proxy
 
-This server runs three things through one local proxy:
+This server runs Nova Chat's protected AI requests through a local proxy:
 
-1. **Chat** (`flip-ia.vercel.app`) — no API key needed, proxied purely to get
-   around a missing CORS header on their side.
+1. **Chat** (`api-novastack.vercel.app/v1/chat/completions`) — uses a NovaStack OAuth access token with the `ai:tokens:use` scope. The browser never receives the OAuth client secret or access token; the proxy stores tokens in HttpOnly cookies and forwards the access token as a Bearer token. Authorization uses the OAuth authorization-code flow with PKCE.
 2. **Voice/text-to-speech** (`api-novastack.vercel.app`) — proxied for the
    same CORS reason, AND because it requires an `x-api-key` header that must
    never be exposed in frontend code (anyone could read it from the browser
@@ -24,7 +23,14 @@ cp .env.example .env
 Open `.env` and set your real key:
 
 ```
-NOVASTACK_API_KEY=your_real_key_here
+NOVASTACK_OAUTH_CLIENT_ID=your_registered_client_id
+NOVASTACK_OAUTH_CLIENT_SECRET=your_registered_client_secret
+NOVASTACK_OAUTH_ISSUER=https://api-novastack.vercel.app/api/auth
+NOVACHAT_PUBLIC_URL=http://localhost:3001
+NOVACHAT_FRONTEND_URL=http://localhost:5173
+
+# Optional: voice/TTS only
+NOVASTACK_API_KEY=your_voice_api_key
 ```
 
 `.env` is already in `.gitignore` — it will never be committed or shared.
@@ -39,7 +45,8 @@ You should see:
 
 ```
 Local proxy running at http://localhost:3001
-  POST /api/chat             -> https://flip-ia.vercel.app/{model}/v1/chat/completions
+  GET  /api/oauth/start      -> NovaStack OAuth authorization
+  POST /api/chat             -> https://api-novastack.vercel.app/v1/chat/completions (OAuth Bearer)
   POST /api/voice            -> https://api-novastack.vercel.app/v1/voice/novastack-voice-1.0
   GET  /api/voice/jobs/:id   -> https://api-novastack.vercel.app/v1/voice/jobs/:id (+ audio once done)
   POST /api/transcribe       -> https://api.assemblyai.com/v2/upload + /v2/transcript
