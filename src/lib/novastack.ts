@@ -75,7 +75,7 @@ async function parseErrorBody(res: Response): Promise<string> {
  */
 export interface ChatReply {
   text: string;
-  /** Reasoning/thinking content, when the model returns it (confirmed for trinity-large-thinking). */
+  /** Reasoning/thinking content, when the thinking model returns it. */
   reasoning?: string;
 }
 
@@ -116,7 +116,7 @@ export async function sendChatMessage(
   if (typeof text !== 'string') {
     throw new NovaStackError('The chat API returned an unexpected response shape.');
   }
-  // Confirmed from a live response: the thinking model returns this as `reasoning_content`.
+  // Thinking models may return their reasoning in either supported field.
   const reasoning = message?.reasoning_content ?? message?.reasoning;
   return {
     text: text.replace(/^\s+/, ''),
