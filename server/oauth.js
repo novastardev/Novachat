@@ -8,17 +8,17 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 const pendingStates = new Map();
 
 function issuerBase() {
-  return (process.env.NOVASTACK_OAUTH_ISSUER || DEFAULT_ISSUER).replace(/\\/+$/, '');
+  return (process.env.NOVASTACK_OAUTH_ISSUER || DEFAULT_ISSUER).replace(/\/+$/, '');
 }
 
 function frontendUrl() {
-  return (process.env.NOVACHAT_FRONTEND_URL || DEFAULT_FRONTEND_URL).replace(/\\/+$/, '');
+  return (process.env.NOVACHAT_FRONTEND_URL || DEFAULT_FRONTEND_URL).replace(/\/+$/, '');
 }
 
 function callbackUrl() {
   const base = process.env.NOVACHAT_PUBLIC_URL;
   if (!base) throw new Error('NOVACHAT_PUBLIC_URL must be set to the public URL of the OAuth proxy.');
-  return `${base.replace(/\\/+$/, '')}/api/oauth/callback`;
+  return `${base.replace(/\/+$/, '')}/api/oauth/callback`;
 }
 
 function cookieOptions(maxAge = COOKIE_MAX_AGE) {
