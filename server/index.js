@@ -51,23 +51,46 @@ app.use(express.urlencoded({ extended: false }));
 // OAuth handoff: the browser navigates here, and this server follows NovaStack's JSON URL server-side.
 app.get('/api/oauth/authorize', async (req, res) => {
   const allowed = ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method'];
+  // Parse the raw URL instead of relying on Express's query parser. This
+  // keeps the OAuth parameters intact across Express/query-parser versions.
+  const incoming = new URL(req.originalUrl, 'http://localhost').searchParams;
   const params = new URLSearchParams();
   for (const key of allowed) {
-    const value = req.query[key];
-    if (typeof value === 'string' && value.length <= 2048) params.set(key, value);
+    const value = incoming.get(key);
+    if (value && value.length <= 2048) params.set(key, value);
   }
-  if (!params.get('client_id') || !params.get('redirect_uri') || !params.get('state') || !params.get('code_challenge')) {
-    return res.status(400).json({ error: 'Missing required OAuth parameters.' });
+  const required = ['client_id', 'redirect_uri', 'state', 'code_challenge'];
+  const missing = required.filter((key) => !params.has(key));
+  console.log('[oauth] authorize request:', JSON.stringify({
+    received: allowed.filter((key) => incoming.has(key)),
+    missing,
+  }));
+  if (missing.length) {
+    return res.status(400).json({ error: 'Missing required OAuth parameters.', missing });
   }
   try {
-    const upstream = await fetch(`https://api-novastack.vercel.app/api/auth/oauth2/authorize?${params.toString()}`, {
+    const upstreamUrl = `https://api-novastack.vercel.app/api/auth/oauth2/authorize?${params.toString()}`;
+    const upstream = await fetch(upstreamUrl, {
       headers: { Accept: 'application/json' },
     });
     const result = await upstream.json().catch(() => ({}));
     if (!upstream.ok || typeof result.url !== 'string') {
-      return res.status(502).json({ error: result.message || result.error_description || 'NovaStack did not return a consent URL.' });
+      console.error('[oauth] NovaStack authorize response was not a continuation URL:', JSON.stringify({
+        status: upstream.status,
+        hasUrl: typeof result.url === 'string',
+        error: result.error || result.message || result.error_description || null,
+      }));
+      return res.status(502).json({ error: result.message || result.error_description || result.error || 'NovaStack did not return a consent URL.' });
     }
     const consentUrl = new URL(result.url);
+    console.log('[oauth] continuation returned:', JSON.stringify({
+      origin: consentUrl.origin,
+      pathname: consentUrl.pathname,
+      queryKeys: [...consentUrl.searchParams.keys()],
+      hasClientId: consentUrl.searchParams.has('client_id'),
+      error: consentUrl.searchParams.get('error'),
+      errorDescription: consentUrl.searchParams.get('error_description'),
+    }));
     // NovaStack may return a continuation URL on its API origin (for login
     // handoff) or a consent URL on the dashboard origin. Only trust these
     // exact first-party origins; never redirect to a caller-controlled host.
