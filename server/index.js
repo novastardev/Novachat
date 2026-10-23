@@ -3,8 +3,8 @@
 // this server, calling the upstream APIs itself, is a server-to-server request,
 // which CORS does not apply to at all. Run with: node server/index.js
 //
-// The NovaStack API key lives ONLY here (read from .env, never sent to the
-// browser, never hardcoded). See server/.env.example.
+// OAuth client credentials and access tokens stay on this server. The optional
+// NovaStack API key remains server-only for voice/TTS. See server/.env.example.
 
 import 'dotenv/config';
 import { getNovaStackAccessToken, registerNovaStackOAuth } from './oauth.js';
