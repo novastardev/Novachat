@@ -9,9 +9,20 @@ import LiveModeOverlay from './components/LiveModeOverlay';
 import { NovaStackError, SYSTEM_PROMPT, sendChatMessage } from './lib/novastack';
 import type { NovaStackMessage } from './lib/novastack';
 import type { ChatMessage, SendPayload } from './types';
+import type { NovaStackUserProfile } from './lib/novastack-oauth';
+
+function readStoredUserProfile(): NovaStackUserProfile | null {
+  try {
+    const raw = localStorage.getItem('novachat_novastack_user');
+    return raw ? JSON.parse(raw) as NovaStackUserProfile : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [userProfile] = useState<NovaStackUserProfile | null>(readStoredUserProfile);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
   // Keeps the conversation history to send as context with each request.
@@ -130,7 +141,7 @@ export default function App() {
 
       <ChatInput onSend={handleSend} onLiveMode={() => setLiveOpen(true)} />
 
-      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} user={userProfile} />
       <LiveModeOverlay open={liveOpen} onClose={() => setLiveOpen(false)} />
     </Box>
   );
