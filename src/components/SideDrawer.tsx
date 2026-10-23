@@ -52,7 +52,6 @@ export default function SideDrawer({ open, onClose, onSelect, user }: Props) {
           <Avatar
             src={avatarUrl || undefined}
             alt={username}
-            imgProps={{ referrerPolicy: 'no-referrer' }}
             sx={{ width: 42, height: 42, flexShrink: 0, fontWeight: 700, bgcolor: 'primary.main' }}
           >
             {initials}
