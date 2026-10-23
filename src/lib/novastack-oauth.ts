@@ -2,6 +2,17 @@ const API_BASE = (import.meta.env.VITE_NOVASTACK_API_URL || 'https://api-novasta
 const OAUTH_HANDOFF_BASE = (import.meta.env.VITE_NOVACHAT_SERVER_URL || '').replace(/\/$/, '');
 const CLIENT_ID = import.meta.env.VITE_NOVASTACK_OAUTH_CLIENT_ID || '';
 const CALLBACK_PATH = '/oauth/callback';
+const USER_PROFILE_KEY = 'novachat_novastack_user';
+
+export interface NovaStackUserProfile {
+  name?: string;
+  preferred_username?: string;
+  username?: string;
+  email?: string;
+  picture?: string;
+  image?: string;
+  avatar?: string;
+}
 
 function base64Url(bytes: Uint8Array): string {
   let binary = '';
@@ -47,7 +58,7 @@ export async function beginNovaStackLogin(): Promise<void> {
   window.location.assign(handoffUrl.toString());
 }
 
-export async function finishNovaStackLogin(): Promise<{ name?: string; email?: string }> {
+export async function finishNovaStackLogin(): Promise<NovaStackUserProfile> {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   const returnedState = params.get('state');
@@ -85,7 +96,17 @@ export async function finishNovaStackLogin(): Promise<{ name?: string; email?: s
   const userResponse = await fetch(`${OAUTH_HANDOFF_BASE}/api/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
-  const user = userResponse.ok ? await userResponse.json().catch(() => ({})) : {};
+  const rawUser = userResponse.ok ? await userResponse.json().catch(() => ({})) : {};
+  const user: NovaStackUserProfile = {
+    name: typeof rawUser.name === 'string' ? rawUser.name : undefined,
+    preferred_username: typeof rawUser.preferred_username === 'string' ? rawUser.preferred_username : undefined,
+    username: typeof rawUser.username === 'string' ? rawUser.username : undefined,
+    email: typeof rawUser.email === 'string' ? rawUser.email : undefined,
+    picture: typeof rawUser.picture === 'string' ? rawUser.picture : undefined,
+    image: typeof rawUser.image === 'string' ? rawUser.image : undefined,
+    avatar: typeof rawUser.avatar === 'string' ? rawUser.avatar : undefined,
+  };
+  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(user));
   window.history.replaceState({}, document.title, CALLBACK_PATH);
   return user;
 }
