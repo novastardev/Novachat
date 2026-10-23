@@ -23,7 +23,7 @@ function callbackUrl() {
 
 function cookieOptions(maxAge = COOKIE_MAX_AGE) {
   const secure = callbackUrl().startsWith('https://');
-  return `Path=/api; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+  return `Path=/api; HttpOnly; SameSite=${secure ? 'None' : 'Lax'}; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
 }
 
 function setTokenCookie(res, name, value, maxAge) {
@@ -35,7 +35,7 @@ function setTokenCookie(res, name, value, maxAge) {
 function clearTokenCookies(res) {
   const secure = (process.env.NOVACHAT_PUBLIC_URL || '').startsWith('https://') ? '; Secure' : '';
   res.setHeader('Set-Cookie', [
-    `${COOKIE_ACCESS}=; Path=/api; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+    `${COOKIE_ACCESS}=; Path=/api; HttpOnly; SameSite=${secure ? 'None' : 'Lax'}; Max-Age=0${secure}`,
     `${COOKIE_REFRESH}=; Path=/api; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
   ]);
 }
