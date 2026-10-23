@@ -32,7 +32,7 @@ interface Props {
 export default function SideDrawer({ open, onClose, onSelect, user }: Props) {
   const avatarUrl = user?.picture || user?.image || user?.avatar || '';
   const username = user?.preferred_username || user?.username || user?.name || user?.email || 'Signed-in user';
-  const initials = username.replace(/^@/, '').split(/[\\s@._-]+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U';
+  const initials = username.replace(/^@/, '').split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U';
   return (
     <Drawer
       anchor="left"
