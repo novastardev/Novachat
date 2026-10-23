@@ -68,7 +68,15 @@ app.get('/api/oauth/authorize', async (req, res) => {
       return res.status(502).json({ error: result.message || result.error_description || 'NovaStack did not return a consent URL.' });
     }
     const consentUrl = new URL(result.url);
-    if (consentUrl.origin !== 'https://app-novastack.vercel.app') {
+    // NovaStack may return a continuation URL on its API origin (for login
+    // handoff) or a consent URL on the dashboard origin. Only trust these
+    // exact first-party origins; never redirect to a caller-controlled host.
+    const trustedOrigins = new Set([
+      'https://app-novastack.vercel.app',
+      'https://api-novastack.vercel.app',
+    ]);
+    if (!trustedOrigins.has(consentUrl.origin)) {
+      console.error('[oauth] Rejected NovaStack continuation origin:', consentUrl.origin);
       return res.status(502).json({ error: 'NovaStack returned an unexpected consent URL.' });
     }
     return res.redirect(302, consentUrl.toString());
