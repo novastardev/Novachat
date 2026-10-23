@@ -12,9 +12,10 @@ interface Props {
   onOpenDrawer: () => void;
   onNewChat: () => void;
   onOpenSettings?: () => void;
+  isSignedIn?: boolean;
 }
 
-export default function TopBar({ title, onOpenDrawer, onNewChat, onOpenSettings }: Props) {
+export default function TopBar({ title, onOpenDrawer, onNewChat, onOpenSettings, isSignedIn = false }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [loginError, setLoginError] = useState('');
   const close = () => setAnchor(null);
@@ -33,7 +34,7 @@ export default function TopBar({ title, onOpenDrawer, onNewChat, onOpenSettings 
     <Box component="header" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1, minHeight: 56 }}>
       <IconButton aria-label="Open menu" onClick={onOpenDrawer}><MenuRounded /></IconButton>
       <Typography component="h2" variant="subtitle1" sx={{ flex: 1, textAlign: 'center', fontWeight: 600 }}>{title}</Typography>
-      <Button size="small" startIcon={<LoginRounded />} onClick={login} sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}>Sign in</Button>
+      {!isSignedIn && <Button size="small" startIcon={<LoginRounded />} onClick={login} sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}>Sign in</Button>}
       <IconButton aria-label="More options" onClick={(e) => setAnchor(e.currentTarget)}><MoreVertRounded /></IconButton>
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={close} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
         <MenuItem onClick={() => { close(); onNewChat(); }}>
