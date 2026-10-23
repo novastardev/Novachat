@@ -52,9 +52,15 @@ Local proxy running at http://localhost:3001
   POST /api/transcribe       -> https://api.assemblyai.com/v2/upload + /v2/transcript
 ```
 
-If you see a warning about `NOVASTACK_API_KEY` not being set, double-check
-`.env` exists in this folder (not the project root) and has the key filled
-in, then restart `npm start`.
+Register this exact redirect URI in the NovaStack OAuth app:
+`http://localhost:3001/api/oauth/callback`. Enable `ai:tokens:use` for the app.
+For a deployed proxy, set `NOVACHAT_PUBLIC_URL` to its HTTPS origin and register
+`<origin>/api/oauth/callback`; set `NOVACHAT_FRONTEND_URL` to the frontend URL
+and set frontend build variable `VITE_PROXY_URL` to the proxy's URL. Restart the
+proxy after changing environment variables.
+
+The optional `NOVASTACK_API_KEY` is still used for voice/TTS only. If voice shows
+a missing-key warning, set that value too. Chat uses OAuth AI Tokens instead.
 
 In another terminal, start the chat app as usual:
 
