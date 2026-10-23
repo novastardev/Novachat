@@ -6,7 +6,7 @@ import MessageList from './components/MessageList';
 import ChatInput from './components/ChatInput';
 import SideDrawer from './components/SideDrawer';
 import LiveModeOverlay from './components/LiveModeOverlay';
-import { NovaStackError, SYSTEM_PROMPT, sendChatMessage } from './lib/novastack';
+import { connectNovaStack, NovaStackError, SYSTEM_PROMPT, sendChatMessage } from './lib/novastack';
 import type { NovaStackMessage } from './lib/novastack';
 import type { ChatMessage, SendPayload } from './types';
 
@@ -114,7 +114,11 @@ export default function App() {
       <TopBar
         title={hasMessages ? 'Nova' : undefined}
         onOpenDrawer={() => setDrawerOpen(true)}
-        onNewChat={() => setMessages([])}
+        onNewChat={() => {
+          setMessages([]);
+          historyRef.current = [{ role: 'system', content: SYSTEM_PROMPT }];
+        }}
+        onConnectNovaStack={connectNovaStack}
       />
 
       <Box
