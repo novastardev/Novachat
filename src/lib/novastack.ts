@@ -5,7 +5,7 @@
  * alongside `npm run dev` for this to work. See server/README.md.
  */
 
-export const PROXY_BASE = (import.meta.env.VITE_PROXY_URL || 'http://localhost:3001').replace(/\\/+$/, '');
+export const PROXY_BASE = (import.meta.env.VITE_PROXY_URL || 'http://localhost:3001').replace(/\/+$/, '');
 const PROXY_URL = `${PROXY_BASE}/api/chat`;
 
 /** Standard model for normal replies. */
