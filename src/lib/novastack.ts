@@ -1,8 +1,7 @@
 /**
- * Client for flip-ia.vercel.app's chat completions API, called through a local
- * proxy (server/index.js) instead of directly, since flip-ia.vercel.app does not
- * send CORS headers that allow browser requests. Run `npm start` inside server/
- * alongside `npm run dev` for this to work. See server/README.md.
+ * Client for NovaStack's OpenAI-compatible chat completions API. Requests pass
+ * through the server-side OAuth proxy so tokens and the client secret stay out
+ * of browser JavaScript. See server/README.md.
  */
 
 export const PROXY_BASE = (import.meta.env.VITE_PROXY_URL || 'http://localhost:3001').replace(/\/+$/, '');
